@@ -1,6 +1,5 @@
 <?php
 
-use App\Providers\FortifyServiceProvider;
 use Laravel\Fortify\Features;
 
 return [
