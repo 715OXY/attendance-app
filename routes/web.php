@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\AttendanceController;
 use App\Http\Middleware\EnsureUserIsAdmin;
 use App\Http\Middleware\EnsureUserIsGeneral;
 use Illuminate\Http\Request;
@@ -23,23 +24,13 @@ Route::get('/', function () {
     return view('welcome');
 });
 
-Route::get('/attendance', function () {
-    $user = auth()->user();
-
-    // 4-Aの画面表示確認用。DBには保存しない。
-    $user->setAttribute('attendance_status', '勤務外');
-
-    $now = now('Asia/Tokyo');
-    $weekdays = ['日', '月', '火', '水', '木', '金', '土'];
-
-    return view('user.attendance-register', [
-        'user' => $user,
-        'formattedDate' => $now->format('Y年n月j日')
-            .'('.$weekdays[$now->dayOfWeek].')',
-        'formattedTime' => $now->format('H:i'),
-    ]);
-})->middleware(EnsureUserIsGeneral::class)
+Route::get('/attendance', [AttendanceController::class, 'index'])
+    ->middleware(EnsureUserIsGeneral::class)
     ->name('attendance.index');
+
+Route::post('/attendance', [AttendanceController::class, 'store'])
+    ->middleware(EnsureUserIsGeneral::class)
+    ->name('attendance.store');
 
 Route::view('/admin/login', 'admin.admin-login')
     ->middleware('guest:web')
