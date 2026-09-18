@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\AttendanceRecord;
+use App\Models\BreakTime;
 use Illuminate\Http\Request;
 
 class AttendanceController extends Controller
@@ -54,17 +55,21 @@ class AttendanceController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'action' => ['required', 'in:clock_in,clock_out'],
+            'action' => [
+                'required',
+                'in:clock_in,clock_out,break_in,break_out',
+            ],
         ]);
 
         $user = auth()->user();
         $now = now('Asia/Tokyo');
 
-        if ($validated['action'] === 'clock_in') {
-            return $this->clockIn($user->id, $now);
-        }
-
-        return $this->clockOut($user->id, $now);
+        return match ($validated['action']) {
+            'clock_in' => $this->clockIn($user->id, $now),
+            'clock_out' => $this->clockOut($user->id, $now),
+            'break_in' => $this->breakIn($user->id, $now),
+            'break_out' => $this->breakOut($user->id, $now),
+        };
     }
 
     /**
@@ -133,6 +138,78 @@ class AttendanceController extends Controller
 
         $attendance->update([
             'clock_out' => $now,
+        ]);
+
+        return redirect()
+            ->route('attendance.index');
+    }
+
+    /**
+     * 休憩開始を登録する。
+     */
+    private function breakIn(int $userId, $now)
+    {
+        $attendance = AttendanceRecord::with('breaks')
+            ->where('user_id', $userId)
+            ->whereNull('clock_out')
+            ->latest('date')
+            ->first();
+
+        // 出勤していなければ休憩開始できない。
+        if (! $attendance) {
+            return redirect()
+                ->route('attendance.index');
+        }
+
+        // すでに休憩中なら重複して休憩開始できない。
+        $isOnBreak = $attendance->breaks
+            ->contains(function ($break) {
+                return $break->break_out === null;
+            });
+
+        if ($isOnBreak) {
+            return redirect()
+                ->route('attendance.index');
+        }
+
+        BreakTime::create([
+            'attendance_record_id' => $attendance->id,
+            'break_in' => $now,
+            'break_out' => null,
+        ]);
+
+        return redirect()
+            ->route('attendance.index');
+    }
+
+    /**
+     * 休憩終了を登録する。
+     */
+    private function breakOut(int $userId, $now)
+    {
+        $attendance = AttendanceRecord::where('user_id', $userId)
+            ->whereNull('clock_out')
+            ->latest('date')
+            ->first();
+
+        if (! $attendance) {
+            return redirect()
+                ->route('attendance.index');
+        }
+
+        $break = BreakTime::where('attendance_record_id', $attendance->id)
+            ->whereNull('break_out')
+            ->latest('id')
+            ->first();
+
+        // 休憩中でなければ休憩終了できない。
+        if (! $break) {
+            return redirect()
+                ->route('attendance.index');
+        }
+
+        $break->update([
+            'break_out' => $now,
         ]);
 
         return redirect()
