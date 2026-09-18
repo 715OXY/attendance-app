@@ -28,6 +28,10 @@ Route::get('/attendance', [AttendanceController::class, 'index'])
     ->middleware(EnsureUserIsGeneral::class)
     ->name('attendance.index');
 
+Route::post('/attendance', [AttendanceController::class, 'store'])
+    ->middleware(EnsureUserIsGeneral::class)
+    ->name('attendance.store');
+
 Route::view('/admin/login', 'admin.admin-login')
     ->middleware('guest:web')
     ->name('admin.login');

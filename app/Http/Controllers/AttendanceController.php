@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\AttendanceRecord;
+use Illuminate\Http\Request;
 
 class AttendanceController extends Controller
 {
@@ -45,6 +46,97 @@ class AttendanceController extends Controller
                 .'('.$weekdays[$now->dayOfWeek].')',
             'formattedTime' => $now->format('H:i'),
         ]);
+    }
+
+    /**
+     * 出勤・退勤を登録する。
+     */
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            'action' => ['required', 'in:clock_in,clock_out'],
+        ]);
+
+        $user = auth()->user();
+        $now = now('Asia/Tokyo');
+
+        if ($validated['action'] === 'clock_in') {
+            return $this->clockIn($user->id, $now);
+        }
+
+        return $this->clockOut($user->id, $now);
+    }
+
+    /**
+     * 出勤を登録する。
+     */
+    private function clockIn(int $userId, $now)
+    {
+        // 前日以前を含め、未退勤の勤怠が存在する場合は新しく出勤できない。
+        $activeAttendance = AttendanceRecord::where('user_id', $userId)
+            ->whereNull('clock_out')
+            ->exists();
+
+        if ($activeAttendance) {
+            return redirect()
+                ->route('attendance.index');
+        }
+
+        // 同じ日に再度出勤することを防止する。
+        $todayAttendance = AttendanceRecord::where('user_id', $userId)
+            ->whereDate('date', $now->toDateString())
+            ->exists();
+
+        if ($todayAttendance) {
+            return redirect()
+                ->route('attendance.index');
+        }
+
+        AttendanceRecord::create([
+            'user_id' => $userId,
+            'date' => $now->toDateString(),
+            'clock_in' => $now,
+            'clock_out' => null,
+            'comment' => null,
+        ]);
+
+        return redirect()
+            ->route('attendance.index');
+    }
+
+    /**
+     * 退勤を登録する。
+     */
+    private function clockOut(int $userId, $now)
+    {
+        $attendance = AttendanceRecord::with('breaks')
+            ->where('user_id', $userId)
+            ->whereNull('clock_out')
+            ->latest('date')
+            ->first();
+
+        if (! $attendance) {
+            return redirect()
+                ->route('attendance.index');
+        }
+
+        // 休憩中は退勤できない。
+        $isOnBreak = $attendance->breaks
+            ->contains(function ($break) {
+                return $break->break_out === null;
+            });
+
+        if ($isOnBreak) {
+            return redirect()
+                ->route('attendance.index');
+        }
+
+        $attendance->update([
+            'clock_out' => $now,
+        ]);
+
+        return redirect()
+            ->route('attendance.index');
     }
 
     /**
