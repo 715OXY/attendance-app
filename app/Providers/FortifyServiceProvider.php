@@ -6,12 +6,16 @@ use App\Actions\Fortify\CreateNewUser;
 use App\Actions\Fortify\ResetUserPassword;
 use App\Actions\Fortify\UpdateUserPassword;
 use App\Actions\Fortify\UpdateUserProfileInformation;
+use App\Http\Responses\RegisterResponse;
+use App\Models\User;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
 use Laravel\Fortify\Actions\RedirectIfTwoFactorAuthenticatable;
+use Laravel\Fortify\Contracts\RegisterResponse as RegisterResponseContract;
 use Laravel\Fortify\Fortify;
 
 class FortifyServiceProvider extends ServiceProvider
@@ -21,7 +25,10 @@ class FortifyServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->singleton(
+            RegisterResponseContract::class,
+            RegisterResponse::class
+        );
     }
 
     /**
@@ -43,11 +50,26 @@ class FortifyServiceProvider extends ServiceProvider
 
         // 認証ビューの設定
         Fortify::loginView(function () {
-            return view('auth.login');
+            return view('user.user-login');
         });
 
         Fortify::registerView(function () {
-            return view('auth.register');
+            return view('user.register');
+        });
+
+        Fortify::authenticateUsing(function (Request $request) {
+            $user = User::where('email', $request->input('email'))
+                ->where('admin_status', false)
+                ->first();
+
+            if (
+                $user &&
+                Hash::check($request->input('password'), $user->password)
+            ) {
+                return $user;
+            }
+
+            return null;
         });
 
         /*
