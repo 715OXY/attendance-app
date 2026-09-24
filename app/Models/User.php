@@ -46,7 +46,7 @@ class User extends Authenticatable
 
     public function attendanceRecords()
     {
-        return $this->hasMany(AttendanceRecord::class);
+        return $this->hasMany(Attendance::class);
     }
 
     public function attendanceCorrectionRequests()

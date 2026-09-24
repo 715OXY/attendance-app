@@ -10,7 +10,7 @@ class AttendanceCorrectionRequest extends Model
     use HasFactory;
 
     protected $fillable = [
-        'attendance_record_id',
+        'attendance_id',
         'user_id',
         'requested_clock_in',
         'requested_clock_out',
@@ -24,9 +24,9 @@ class AttendanceCorrectionRequest extends Model
         'status' => 'integer',
     ];
 
-    public function attendanceRecord()
+    public function attendance()
     {
-        return $this->belongsTo(AttendanceRecord::class);
+        return $this->belongsTo(Attendance::class, 'attendance_id');
     }
 
     public function user()

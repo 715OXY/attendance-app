@@ -2,14 +2,14 @@
 
 namespace Database\Factories;
 
-use App\Models\AttendanceRecord;
+use App\Models\Attendance;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends Factory<AttendanceRecord>
+ * @extends Factory<Attendance>
  */
-class AttendanceRecordFactory extends Factory
+class AttendanceFactory extends Factory
 {
     /**
      * Define the model's default state.
