@@ -32,6 +32,35 @@ Route::post('/attendance', [AttendanceController::class, 'store'])
     ->middleware(EnsureUserIsGeneral::class)
     ->name('attendance.store');
 
+Route::get('/attendance/list', [AttendanceController::class, 'list'])
+    ->middleware(EnsureUserIsGeneral::class)
+    ->name('attendance.list');
+
+Route::get('/attendance/detail/{id}', [AttendanceController::class, 'show'])
+    ->middleware(EnsureUserIsGeneral::class)
+    ->name('attendance.show');
+
+Route::get('/attendance/{id}', function ($id) {
+    return redirect()->route('attendance.show', ['id' => $id]);
+})
+    ->middleware(EnsureUserIsGeneral::class)
+    ->name('attendance.detail.redirect');
+
+Route::post('/attendance/{id}', [AttendanceController::class, 'requestCorrection'])
+    ->middleware(EnsureUserIsGeneral::class)
+    ->name('attendance.correction.store');
+
+Route::get(
+    '/stamp_correction_request/list',
+    [AttendanceController::class, 'applicationList']
+)
+    ->middleware(EnsureUserIsGeneral::class)
+    ->name('attendance.application.list');
+
+Route::get('/application/{id}', [AttendanceController::class, 'applicationDetail'])
+    ->middleware(EnsureUserIsGeneral::class)
+    ->name('attendance.application.detail');
+
 Route::view('/admin/login', 'admin.admin-login')
     ->middleware('guest:web')
     ->name('admin.login');

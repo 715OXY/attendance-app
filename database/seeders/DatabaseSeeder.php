@@ -3,7 +3,7 @@
 namespace Database\Seeders;
 
 // use Illuminate\Database\Console\Seeds\WithoutModelEvents;
-use App\Models\AttendanceRecord;
+use App\Models\Attendance;
 use App\Models\BreakTime;
 use App\Models\User;
 use Carbon\Carbon;
@@ -58,7 +58,7 @@ class DatabaseSeeder extends Seeder
                 continue;
             }
 
-            $attendance = AttendanceRecord::factory()->create([
+            $attendance = Attendance::factory()->create([
                 'user_id' => $user->id,
                 'date' => $date->toDateString(),
                 'clock_in' => $date->copy()
@@ -73,11 +73,11 @@ class DatabaseSeeder extends Seeder
     }
 
     private function createBreak(
-        AttendanceRecord $attendance,
+        Attendance $attendance,
         Carbon $date
     ): void {
         BreakTime::create([
-            'attendance_record_id' => $attendance->id,
+            'attendance_id' => $attendance->id,
             'break_in' => $date->copy()->setTime(12, 0),
             'break_out' => $date->copy()->setTime(13, 0),
         ]);

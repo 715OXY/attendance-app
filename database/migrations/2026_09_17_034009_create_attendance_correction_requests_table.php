@@ -14,8 +14,8 @@ return new class extends Migration
         Schema::create('attendance_correction_requests', function (Blueprint $table) {
             $table->id();
 
-            $table->foreignId('attendance_record_id')
-                ->constrained('attendance_records')
+            $table->foreignId('attendance_id')
+                ->constrained('attendances')
                 ->cascadeOnDelete();
 
             $table->foreignId('user_id')
