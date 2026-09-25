@@ -1,13 +1,14 @@
 <?php
 
+use App\Http\Controllers\Admin\AttendanceController as AdminAttendanceController;
 use App\Http\Controllers\Admin\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\AttendanceController;
 use App\Http\Middleware\EnsureUserIsAdmin;
 use App\Http\Middleware\EnsureUserIsGeneral;
+use App\Http\Requests\AdminAttendanceUpdateRequest;
+use App\Http\Requests\AttendanceCorrectionRequest;
 use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\Validator;
 
 /*
 |--------------------------------------------------------------------------
@@ -40,14 +41,44 @@ Route::get('/attendance/detail/{id}', [AttendanceController::class, 'show'])
     ->middleware(EnsureUserIsGeneral::class)
     ->name('attendance.show');
 
-Route::get('/attendance/{id}', function ($id) {
+Route::get('/attendance/{id}', function (Request $request, $id) {
+    $user = $request->user('web');
+
+    // 提供Bladeの /attendance/{id} を認証ユーザー種別に応じて振り分ける
+    if (! $user) {
+        return redirect()->route('login');
+    }
+
+    if ($user->admin_status) {
+        return redirect()->route('admin.attendance.show', ['id' => $id]);
+    }
+
     return redirect()->route('attendance.show', ['id' => $id]);
 })
-    ->middleware(EnsureUserIsGeneral::class)
     ->name('attendance.detail.redirect');
 
-Route::post('/attendance/{id}', [AttendanceController::class, 'requestCorrection'])
-    ->middleware(EnsureUserIsGeneral::class)
+Route::post('/attendance/{id}', function (Request $request, $id) {
+    $user = $request->user('web');
+
+    // 提供Bladeの /attendance/{id} を認証ユーザー種別に応じて振り分ける
+    if (! $user) {
+        return redirect()->route('login');
+    }
+
+    if ($user->admin_status) {
+        return app(AdminAttendanceController::class)
+            ->update(
+                app(AdminAttendanceUpdateRequest::class),
+                $id
+            );
+    }
+
+    return app(AttendanceController::class)
+        ->requestCorrection(
+            app(AttendanceCorrectionRequest::class),
+            $id
+        );
+})
     ->name('attendance.correction.store');
 
 Route::get(
@@ -73,31 +104,17 @@ Route::post('/admin/logout', [AuthenticatedSessionController::class, 'destroy'])
     ->middleware(EnsureUserIsAdmin::class)
     ->name('admin.logout');
 
-Route::get('/admin/attendance/list', function (Request $request) {
-    $validator = Validator::make($request->query(), [
-        'date' => ['sometimes', 'required', 'date_format:Y-m-d'],
-    ]);
-
-    abort_if($validator->fails(), 400, '日付の指定が正しくありません。');
-
-    $validated = $validator->validated();
-
-    $date = isset($validated['date'])
-        ? Carbon::createFromFormat(
-            '!Y-m-d',
-            $validated['date'],
-            'Asia/Tokyo'
-        )
-        : Carbon::today('Asia/Tokyo');
-
-    return view('admin.admin-attendance-list', [
-        'date' => $date,
-        'previousDay' => $date->copy()->subDay()->format('Y-m-d'),
-        'nextDay' => $date->copy()->addDay()->format('Y-m-d'),
-
-        // 認証・画面表示の確認用。勤怠一覧の実装時に置き換える。
-        'users' => collect(),
-        'attendanceRecords' => collect(),
-    ]);
-})->middleware(EnsureUserIsAdmin::class)
+// 管理者用勤怠一覧・詳細
+Route::get(
+    '/admin/attendance/list',
+    [AdminAttendanceController::class, 'index']
+)
+    ->middleware(EnsureUserIsAdmin::class)
     ->name('admin.attendance.index');
+
+Route::get(
+    '/admin/attendance/{id}',
+    [AdminAttendanceController::class, 'show']
+)
+    ->middleware(EnsureUserIsAdmin::class)
+    ->name('admin.attendance.show');

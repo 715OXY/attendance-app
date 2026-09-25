@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\DB;
 class AttendanceController extends Controller
 {
     /**
-     * 勤怠登録画面を表示する。
+     * 一般ユーザー用の勤怠登録画面を表示する。
      */
     public function index()
     {
@@ -55,7 +55,7 @@ class AttendanceController extends Controller
     }
 
     /**
-     * 月次勤怠一覧を表示する。
+     * 一般ユーザー用の月次勤怠一覧を表示する。
      */
     public function list(Request $request)
     {
@@ -142,7 +142,7 @@ class AttendanceController extends Controller
     }
 
     /**
-     * 出勤・退勤を登録する。
+     * 出勤・休憩入・休憩戻・退勤の打刻処理を行う。
      */
     public function store(Request $request)
     {
@@ -165,7 +165,7 @@ class AttendanceController extends Controller
     }
 
     /**
-     * 勤怠詳細画面を表示する。
+     * 一般ユーザー用の勤怠詳細画面を表示する。
      */
     public function show(int $id)
     {
@@ -322,7 +322,7 @@ class AttendanceController extends Controller
     }
 
     /**
-     * 修正申請一覧を表示する。
+     * 一般ユーザー用の修正申請一覧を表示する。
      */
     public function applicationList()
     {
@@ -353,7 +353,7 @@ class AttendanceController extends Controller
     }
 
     /**
-     * 修正申請から対象の勤怠詳細画面へ遷移する。
+     * 一般ユーザー用の修正申請詳細を表示する。
      */
     public function applicationDetail(int $id)
     {
