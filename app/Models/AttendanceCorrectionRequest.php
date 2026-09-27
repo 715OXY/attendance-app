@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -37,5 +38,47 @@ class AttendanceCorrectionRequest extends Model
     public function correctionBreaks()
     {
         return $this->hasMany(AttendanceCorrectionBreak::class);
+    }
+
+    /**
+     * 提供Blade用の勤怠リレーション名を提供する。
+     */
+    public function AttendanceRecord()
+    {
+        return $this->attendance();
+    }
+
+    /**
+     * 提供Blade用の承認状態を返す。
+     */
+    protected function approvalStatus(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => match ($this->status) {
+                0 => '承認待ち',
+                1 => '承認済み',
+                default => '',
+            },
+        );
+    }
+
+    /**
+     * 提供Blade用の申請理由を返す。
+     */
+    protected function comment(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->requested_comment,
+        );
+    }
+
+    /**
+     * 提供Blade用の申請日時を返す。
+     */
+    protected function applicationDate(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->created_at,
+        );
     }
 }

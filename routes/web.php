@@ -81,11 +81,25 @@ Route::post('/attendance/{id}', function (Request $request, $id) {
 })
     ->name('attendance.correction.store');
 
-Route::get(
-    '/stamp_correction_request/list',
-    [AttendanceController::class, 'applicationList']
-)
-    ->middleware(EnsureUserIsGeneral::class)
+Route::get('/stamp_correction_request/list', function (Request $request) {
+    $user = $request->user('web');
+
+    if (! $user) {
+        return redirect()->route('login');
+    }
+
+    if ($user->admin_status) {
+        return app()->call([
+            app(AdminAttendanceController::class),
+            'applicationList',
+        ]);
+    }
+
+    return app()->call([
+        app(AttendanceController::class),
+        'applicationList',
+    ]);
+})
     ->name('attendance.application.list');
 
 Route::get('/application/{id}', [AttendanceController::class, 'applicationDetail'])
@@ -118,3 +132,17 @@ Route::get(
 )
     ->middleware(EnsureUserIsAdmin::class)
     ->name('admin.attendance.show');
+
+Route::get(
+    '/admin/staff/list',
+    [AdminAttendanceController::class, 'staffList']
+)
+    ->middleware(EnsureUserIsAdmin::class)
+    ->name('admin.staff.index');
+
+Route::get(
+    '/admin/attendance/staff/{id}',
+    [AdminAttendanceController::class, 'staffAttendanceList']
+)
+    ->middleware(EnsureUserIsAdmin::class)
+    ->name('admin.staff.attendance.index');
