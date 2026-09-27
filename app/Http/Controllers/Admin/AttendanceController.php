@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\AdminAttendanceUpdateRequest;
 use App\Models\Attendance;
+use App\Models\AttendanceCorrectionRequest;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -53,6 +54,109 @@ class AttendanceController extends Controller
             'nextDay' => $date->copy()->addDay()->format('Y-m-d'),
             'users' => $users,
             'attendanceRecords' => $attendanceRecords,
+        ]);
+    }
+
+    /**
+     * スタッフ一覧を表示する。
+     */
+    public function staffList()
+    {
+        $users = User::where('admin_status', false)
+            ->orderBy('id')
+            ->get();
+
+        return view('admin.staff-list', [
+            'users' => $users,
+        ]);
+    }
+
+    /**
+     * スタッフ別の月次勤怠一覧を表示する。
+     */
+    public function staffAttendanceList(Request $request, int $id)
+    {
+        $validator = Validator::make($request->query(), [
+            'date' => ['sometimes', 'required', 'date_format:Y-m'],
+        ]);
+
+        abort_if(
+            $validator->fails(),
+            400,
+            '年月の指定が正しくありません。'
+        );
+
+        $validated = $validator->validated();
+
+        $date = isset($validated['date'])
+            ? Carbon::createFromFormat(
+                '!Y-m',
+                $validated['date'],
+                'Asia/Tokyo'
+            )
+            : now('Asia/Tokyo')->startOfMonth();
+
+        $user = User::where('admin_status', false)
+            ->findOrFail($id);
+
+        $startOfMonth = $date->copy()->startOfMonth();
+        $endOfMonth = $date->copy()->endOfMonth();
+
+        $attendanceRecords = Attendance::with('breaks')
+            ->where('user_id', $user->id)
+            ->whereBetween('date', [
+                $startOfMonth->format('Y-m-d'),
+                $endOfMonth->format('Y-m-d'),
+            ])
+            ->get()
+            ->keyBy(function ($attendance) {
+                return $attendance->date->format('Y-m-d');
+            });
+
+        $formattedAttendanceRecords = collect();
+
+        $currentDate = $startOfMonth->copy();
+
+        while ($currentDate->lte($endOfMonth)) {
+            $attendanceRecord = $attendanceRecords->get(
+                $currentDate->format('Y-m-d')
+            );
+
+            $hasIncompleteBreak = $attendanceRecord
+                ? $attendanceRecord->breaks->contains(function ($break) {
+                    return $break->break_in && ! $break->break_out;
+                })
+                : false;
+
+            $isIncompleteAttendance = $attendanceRecord
+                && (
+                    ! $attendanceRecord->clock_in
+                    || ! $attendanceRecord->clock_out
+                    || $hasIncompleteBreak
+                );
+
+            $formattedAttendanceRecords->push([
+                'id' => $attendanceRecord?->id,
+                'date' => $currentDate->isoFormat('MM/DD(ddd)'),
+                'clock_in' => $attendanceRecord?->clock_in?->format('H:i') ?? '',
+                'clock_out' => $attendanceRecord?->clock_out?->format('H:i') ?? '',
+                'total_break_time' => $attendanceRecord && ! $isIncompleteAttendance
+                    ? $attendanceRecord->total_break_time
+                    : null,
+                'total_time' => $attendanceRecord && ! $isIncompleteAttendance
+                    ? $attendanceRecord->total_time
+                    : null,
+            ]);
+
+            $currentDate->addDay();
+        }
+
+        return view('admin.staff-attendance-list', [
+            'user' => $user,
+            'date' => $date,
+            'previousMonth' => $date->copy()->subMonth()->format('Y-m'),
+            'nextMonth' => $date->copy()->addMonth()->format('Y-m'),
+            'formattedAttendanceRecords' => $formattedAttendanceRecords,
         ]);
     }
 
@@ -184,5 +288,22 @@ class AttendanceController extends Controller
 
         return redirect()
             ->route('admin.attendance.show', ['id' => $attendance->id]);
+    }
+
+    /**
+     * 全スタッフの修正申請一覧を表示する。
+     */
+    public function applicationList()
+    {
+        $applications = AttendanceCorrectionRequest::with([
+            'user',
+            'AttendanceRecord',
+        ])
+            ->latest('created_at')
+            ->get();
+
+        return view('admin.admin-application-list', [
+            'applications' => $applications,
+        ]);
     }
 }
