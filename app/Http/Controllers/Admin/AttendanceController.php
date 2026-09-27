@@ -306,4 +306,65 @@ class AttendanceController extends Controller
             'applications' => $applications,
         ]);
     }
+
+    /**
+     * 修正申請の詳細を表示する。
+     */
+    public function applicationDetail(int $attendance_correct_request_id)
+    {
+        $application = AttendanceCorrectionRequest::with([
+            'user',
+            'attendance',
+            'proposalBreaks',
+        ])->findOrFail($attendance_correct_request_id);
+
+        return view('admin.admin-application-detail', [
+            'application' => $application,
+            'user' => $application->user,
+        ]);
+    }
+
+    /**
+     * 修正申請を承認し、正式な勤怠情報へ反映する。
+     */
+    public function approveApplication(int $attendance_correct_request_id)
+    {
+        $application = AttendanceCorrectionRequest::with([
+            'attendance.breaks',
+            'correctionBreaks',
+        ])->findOrFail($attendance_correct_request_id);
+
+        if ($application->status === 1) {
+            return redirect()->route('admin.application.show', [
+                'attendance_correct_request_id' => $application->id,
+            ]);
+        }
+
+        DB::transaction(function () use ($application) {
+            $attendance = $application->attendance;
+
+            $attendance->update([
+                'clock_in' => $application->requested_clock_in,
+                'clock_out' => $application->requested_clock_out,
+                'comment' => $application->requested_comment,
+            ]);
+
+            $attendance->breaks()->delete();
+
+            foreach ($application->correctionBreaks as $correctionBreak) {
+                $attendance->breaks()->create([
+                    'break_in' => $correctionBreak->requested_break_in,
+                    'break_out' => $correctionBreak->requested_break_out,
+                ]);
+            }
+
+            $application->update([
+                'status' => 1,
+            ]);
+        });
+
+        return redirect()->route('admin.application.show', [
+            'attendance_correct_request_id' => $application->id,
+        ]);
+    }
 }

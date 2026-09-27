@@ -146,3 +146,17 @@ Route::get(
 )
     ->middleware(EnsureUserIsAdmin::class)
     ->name('admin.staff.attendance.index');
+
+Route::get(
+    '/stamp_correction_request/approve/{attendance_correct_request_id}',
+    [AdminAttendanceController::class, 'applicationDetail']
+)
+    ->middleware(EnsureUserIsAdmin::class)
+    ->name('admin.application.show');
+
+Route::post(
+    '/stamp_correction_request/approve/{attendance_correct_request_id}',
+    [AdminAttendanceController::class, 'approveApplication']
+)
+    ->middleware(EnsureUserIsAdmin::class)
+    ->name('admin.application.approve');

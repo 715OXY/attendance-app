@@ -81,4 +81,42 @@ class AttendanceCorrectionRequest extends Model
             get: fn () => $this->created_at,
         );
     }
+
+    /**
+     * 提供Blade用の修正対象日を返す。
+     */
+    protected function newDate(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->attendance?->date,
+        );
+    }
+
+    /**
+     * 提供Blade用の修正後出勤時刻を返す。
+     */
+    protected function newClockIn(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->requested_clock_in?->format('H:i') ?? '',
+        );
+    }
+
+    /**
+     * 提供Blade用の修正後退勤時刻を返す。
+     */
+    protected function newClockOut(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->requested_clock_out?->format('H:i') ?? '',
+        );
+    }
+
+    /**
+     * 提供Blade用の修正休憩リレーション名を提供する。
+     */
+    public function proposalBreaks()
+    {
+        return $this->correctionBreaks();
+    }
 }
