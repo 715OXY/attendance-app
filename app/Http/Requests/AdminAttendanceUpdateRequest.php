@@ -50,7 +50,7 @@ class AdminAttendanceUpdateRequest extends FormRequest
                 'date_format:H:i',
             ],
             'comment' => [
-                'nullable',
+                'required',
                 'string',
                 'max:255',
             ],
@@ -72,6 +72,7 @@ class AdminAttendanceUpdateRequest extends FormRequest
             'new_break_in.*.date_format' => '休憩時間が不適切な値です',
             'new_break_out.*.date_format' => '休憩時間もしくは退勤時間が不適切な値です',
 
+            'comment.required' => '備考を記入してください',
             'comment.max' => '備考は255文字以内で入力してください',
         ];
     }
