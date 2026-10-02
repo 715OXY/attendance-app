@@ -7,6 +7,8 @@ use App\Http\Requests\AdminAttendanceUpdateRequest;
 use App\Models\Attendance;
 use App\Models\AttendanceCorrectionRequest;
 use App\Models\User;
+use Illuminate\Contracts\View\View;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -17,7 +19,7 @@ class AttendanceController extends Controller
     /**
      * 管理者用の日次勤怠一覧を表示する。
      */
-    public function index(Request $request)
+    public function index(Request $request): View
     {
         $validator = Validator::make($request->query(), [
             'date' => ['sometimes', 'required', 'date_format:Y-m-d'],
@@ -60,7 +62,7 @@ class AttendanceController extends Controller
     /**
      * スタッフ一覧を表示する。
      */
-    public function staffList()
+    public function staffList(): View
     {
         $users = User::where('admin_status', false)
             ->orderBy('id')
@@ -74,7 +76,7 @@ class AttendanceController extends Controller
     /**
      * スタッフ別の月次勤怠一覧を表示する。
      */
-    public function staffAttendanceList(Request $request, int $id)
+    public function staffAttendanceList(Request $request, int $id): View
     {
         $validator = Validator::make($request->query(), [
             'date' => ['sometimes', 'required', 'date_format:Y-m'],
@@ -163,7 +165,7 @@ class AttendanceController extends Controller
     /**
      * 管理者用の勤怠詳細画面を表示する。
      */
-    public function show(Request $request, int $id)
+    public function show(Request $request, int $id): View
     {
         $attendance = Attendance::with([
             'user',
@@ -237,8 +239,10 @@ class AttendanceController extends Controller
     /**
      * 管理者による勤怠情報の直接修正を行う。
      */
-    public function update(AdminAttendanceUpdateRequest $request, int $id)
-    {
+    public function update(
+        AdminAttendanceUpdateRequest $request,
+        int $id
+    ): RedirectResponse {
         $attendance = Attendance::with([
             'breaks',
             'correctionRequests',
@@ -293,7 +297,7 @@ class AttendanceController extends Controller
     /**
      * 全スタッフの修正申請一覧を表示する。
      */
-    public function applicationList()
+    public function applicationList(): View
     {
         $applications = AttendanceCorrectionRequest::with([
             'user',
@@ -310,7 +314,7 @@ class AttendanceController extends Controller
     /**
      * 修正申請の詳細を表示する。
      */
-    public function applicationDetail(int $attendance_correct_request_id)
+    public function applicationDetail(int $attendance_correct_request_id): View
     {
         $application = AttendanceCorrectionRequest::with([
             'user',
@@ -327,8 +331,9 @@ class AttendanceController extends Controller
     /**
      * 修正申請を承認し、正式な勤怠情報へ反映する。
      */
-    public function approveApplication(int $attendance_correct_request_id)
-    {
+    public function approveApplication(
+        int $attendance_correct_request_id
+    ): RedirectResponse {
         $application = AttendanceCorrectionRequest::with([
             'attendance.breaks',
             'correctionBreaks',

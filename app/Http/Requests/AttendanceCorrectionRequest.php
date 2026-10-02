@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Validator;
 
 class AttendanceCorrectionRequest extends FormRequest
 {
@@ -80,9 +81,9 @@ class AttendanceCorrectionRequest extends FormRequest
     /**
      * 項目間の時刻関係を検証する。
      */
-    public function withValidator($validator): void
+    public function withValidator(Validator $validator): void
     {
-        $validator->after(function ($validator) {
+        $validator->after(function (Validator $validator) {
             if ($validator->errors()->isNotEmpty()) {
                 return;
             }

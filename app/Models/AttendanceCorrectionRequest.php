@@ -5,6 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class AttendanceCorrectionRequest extends Model
 {
@@ -25,17 +27,26 @@ class AttendanceCorrectionRequest extends Model
         'status' => 'integer',
     ];
 
-    public function attendance()
+    /**
+     * 修正申請に紐づく勤怠情報を取得する。
+     */
+    public function attendance(): BelongsTo
     {
         return $this->belongsTo(Attendance::class, 'attendance_id');
     }
 
-    public function user()
+    /**
+     * 修正申請を行ったユーザーを取得する。
+     */
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
-    public function correctionBreaks()
+    /**
+     * 修正申請に紐づく休憩修正情報を取得する。
+     */
+    public function correctionBreaks(): HasMany
     {
         return $this->hasMany(AttendanceCorrectionBreak::class);
     }
@@ -43,7 +54,7 @@ class AttendanceCorrectionRequest extends Model
     /**
      * 提供Blade用の勤怠リレーション名を提供する。
      */
-    public function AttendanceRecord()
+    public function AttendanceRecord(): BelongsTo
     {
         return $this->attendance();
     }
@@ -115,7 +126,7 @@ class AttendanceCorrectionRequest extends Model
     /**
      * 提供Blade用の修正休憩リレーション名を提供する。
      */
-    public function proposalBreaks()
+    public function proposalBreaks(): HasMany
     {
         return $this->correctionBreaks();
     }
