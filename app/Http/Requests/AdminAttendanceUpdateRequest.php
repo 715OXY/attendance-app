@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Validator;
 
 class AdminAttendanceUpdateRequest extends FormRequest
 {
@@ -80,9 +81,9 @@ class AdminAttendanceUpdateRequest extends FormRequest
     /**
      * 出退勤時刻と休憩時刻の整合性を追加検証する。
      */
-    public function withValidator($validator): void
+    public function withValidator(Validator $validator): void
     {
-        $validator->after(function ($validator) {
+        $validator->after(function (Validator $validator) {
             if ($validator->errors()->isNotEmpty()) {
                 return;
             }

@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 
 class Attendance extends Model
@@ -27,7 +29,7 @@ class Attendance extends Model
     /**
      * 勤怠に紐づくユーザーを取得する。
      */
-    public function user()
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
@@ -35,7 +37,7 @@ class Attendance extends Model
     /**
      * 勤怠に紐づく休憩情報を取得する。
      */
-    public function breaks()
+    public function breaks(): HasMany
     {
         return $this->hasMany(BreakTime::class);
     }
@@ -43,7 +45,7 @@ class Attendance extends Model
     /**
      * 勤怠に紐づく修正申請を取得する。
      */
-    public function correctionRequests()
+    public function correctionRequests(): HasMany
     {
         return $this->hasMany(AttendanceCorrectionRequest::class);
     }
@@ -51,7 +53,7 @@ class Attendance extends Model
     /**
      * 合計休憩時間を算出する。
      */
-    public function getTotalBreakTimeAttribute()
+    public function getTotalBreakTimeAttribute(): string
     {
         $totalBreakSeconds = $this->breaks->sum(function ($break) {
             if ($break->break_in && $break->break_out) {
@@ -68,7 +70,7 @@ class Attendance extends Model
     /**
      * 休憩時間を差し引いた実勤務時間を算出する。
      */
-    public function getTotalTimeAttribute()
+    public function getTotalTimeAttribute(): ?string
     {
         if (! $this->clock_in || ! $this->clock_out) {
             return null;

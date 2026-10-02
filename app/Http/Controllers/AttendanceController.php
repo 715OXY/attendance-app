@@ -7,6 +7,8 @@ use App\Models\Attendance;
 use App\Models\AttendanceCorrectionBreak;
 use App\Models\AttendanceCorrectionRequest;
 use App\Models\BreakTime;
+use Illuminate\Contracts\View\View;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -16,7 +18,7 @@ class AttendanceController extends Controller
     /**
      * 一般ユーザー用の勤怠登録画面を表示する。
      */
-    public function index()
+    public function index(): View
     {
         $user = auth()->user();
         $now = now('Asia/Tokyo');
@@ -57,7 +59,7 @@ class AttendanceController extends Controller
     /**
      * 一般ユーザー用の月次勤怠一覧を表示する。
      */
-    public function list(Request $request)
+    public function list(Request $request): View
     {
         $user = auth()->user();
 
@@ -144,7 +146,7 @@ class AttendanceController extends Controller
     /**
      * 出勤・休憩入・休憩戻・退勤の打刻処理を行う。
      */
-    public function store(Request $request)
+    public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
             'action' => [
@@ -167,7 +169,7 @@ class AttendanceController extends Controller
     /**
      * 一般ユーザー用の勤怠詳細画面を表示する。
      */
-    public function show(int $id)
+    public function show(int $id): View
     {
         $user = auth()->user();
 
@@ -241,7 +243,7 @@ class AttendanceController extends Controller
     public function requestCorrection(
         AttendanceCorrectionFormRequest $request,
         int $id
-    ) {
+    ): RedirectResponse {
         $user = auth()->user();
 
         $attendance = Attendance::where('id', $id)
@@ -324,7 +326,7 @@ class AttendanceController extends Controller
     /**
      * 一般ユーザー用の修正申請一覧を表示する。
      */
-    public function applicationList()
+    public function applicationList(): View
     {
         $user = auth()->user();
 
@@ -355,7 +357,7 @@ class AttendanceController extends Controller
     /**
      * 一般ユーザー用の修正申請詳細を表示する。
      */
-    public function applicationDetail(int $id)
+    public function applicationDetail(int $id): RedirectResponse
     {
         $user = auth()->user();
 
@@ -371,7 +373,7 @@ class AttendanceController extends Controller
     /**
      * 出勤を登録する。
      */
-    private function clockIn(int $userId, $now)
+    private function clockIn(int $userId, Carbon $now): RedirectResponse
     {
         // 前日以前を含め、未退勤の勤怠が存在する場合は新しく出勤できない。
         $activeAttendance = Attendance::where('user_id', $userId)
@@ -408,7 +410,7 @@ class AttendanceController extends Controller
     /**
      * 退勤を登録する。
      */
-    private function clockOut(int $userId, $now)
+    private function clockOut(int $userId, Carbon $now): RedirectResponse
     {
         $attendance = Attendance::with('breaks')
             ->where('user_id', $userId)
@@ -443,7 +445,7 @@ class AttendanceController extends Controller
     /**
      * 休憩開始を登録する。
      */
-    private function breakIn(int $userId, $now)
+    private function breakIn(int $userId, Carbon $now): RedirectResponse
     {
         $attendance = Attendance::with('breaks')
             ->where('user_id', $userId)
@@ -481,7 +483,7 @@ class AttendanceController extends Controller
     /**
      * 休憩終了を登録する。
      */
-    private function breakOut(int $userId, $now)
+    private function breakOut(int $userId, Carbon $now): RedirectResponse
     {
         $attendance = Attendance::where('user_id', $userId)
             ->whereNull('clock_out')

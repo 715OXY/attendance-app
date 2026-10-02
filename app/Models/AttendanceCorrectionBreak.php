@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class AttendanceCorrectionBreak extends Model
 {
@@ -21,7 +22,10 @@ class AttendanceCorrectionBreak extends Model
         'requested_break_out' => 'datetime',
     ];
 
-    public function attendanceCorrectionRequest()
+    /**
+     * 修正申請に紐づく休憩情報を取得する。
+     */
+    public function attendanceCorrectionRequest(): BelongsTo
     {
         return $this->belongsTo(AttendanceCorrectionRequest::class);
     }
