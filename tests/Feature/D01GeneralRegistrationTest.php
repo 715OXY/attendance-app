@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -162,7 +163,7 @@ class D01GeneralRegistrationTest extends TestCase
         $response = $this->post(route('register.store'), $data);
 
         // Assert
-        $response->assertRedirect(route('attendance.index'));
+        $response->assertRedirect(route('verification.notice'));
 
         $this->assertAuthenticated();
 
@@ -170,5 +171,9 @@ class D01GeneralRegistrationTest extends TestCase
             'name' => 'テスト太郎',
             'email' => 'd01-success@example.com',
         ]);
+
+        $user = User::where('email', $data['email'])->first();
+
+        $this->assertNull($user->email_verified_at);
     }
 }

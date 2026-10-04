@@ -73,6 +73,10 @@ Route::post('/attendance/{id}', function (Request $request, $id) {
             );
     }
 
+    if (! $user->hasVerifiedEmail()) {
+        return redirect()->route('verification.notice');
+    }
+
     return app(AttendanceController::class)
         ->requestCorrection(
             app(AttendanceCorrectionRequest::class),
@@ -93,6 +97,10 @@ Route::get('/stamp_correction_request/list', function (Request $request) {
             app(AdminAttendanceController::class),
             'applicationList',
         ]);
+    }
+
+    if (! $user->hasVerifiedEmail()) {
+        return redirect()->route('verification.notice');
     }
 
     return app()->call([
