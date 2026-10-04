@@ -11,8 +11,10 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AttendanceController extends Controller
 {
@@ -101,57 +103,10 @@ class AttendanceController extends Controller
         $user = User::where('admin_status', false)
             ->findOrFail($id);
 
-        $startOfMonth = $date->copy()->startOfMonth();
-        $endOfMonth = $date->copy()->endOfMonth();
-
-        $attendanceRecords = Attendance::with('breaks')
-            ->where('user_id', $user->id)
-            ->whereBetween('date', [
-                $startOfMonth->format('Y-m-d'),
-                $endOfMonth->format('Y-m-d'),
-            ])
-            ->get()
-            ->keyBy(function ($attendance) {
-                return $attendance->date->format('Y-m-d');
-            });
-
-        $formattedAttendanceRecords = collect();
-
-        $currentDate = $startOfMonth->copy();
-
-        while ($currentDate->lte($endOfMonth)) {
-            $attendanceRecord = $attendanceRecords->get(
-                $currentDate->format('Y-m-d')
-            );
-
-            $hasIncompleteBreak = $attendanceRecord
-                ? $attendanceRecord->breaks->contains(function ($break) {
-                    return $break->break_in && ! $break->break_out;
-                })
-                : false;
-
-            $isIncompleteAttendance = $attendanceRecord
-                && (
-                    ! $attendanceRecord->clock_in
-                    || ! $attendanceRecord->clock_out
-                    || $hasIncompleteBreak
-                );
-
-            $formattedAttendanceRecords->push([
-                'id' => $attendanceRecord?->id,
-                'date' => $currentDate->isoFormat('MM/DD(ddd)'),
-                'clock_in' => $attendanceRecord?->clock_in?->format('H:i') ?? '',
-                'clock_out' => $attendanceRecord?->clock_out?->format('H:i') ?? '',
-                'total_break_time' => $attendanceRecord && ! $isIncompleteAttendance
-                    ? $attendanceRecord->total_break_time
-                    : null,
-                'total_time' => $attendanceRecord && ! $isIncompleteAttendance
-                    ? $attendanceRecord->total_time
-                    : null,
-            ]);
-
-            $currentDate->addDay();
-        }
+        $formattedAttendanceRecords = $this->buildStaffAttendanceRecords(
+            $user,
+            $date
+        );
 
         return view('admin.staff-attendance-list', [
             'user' => $user,
@@ -160,6 +115,94 @@ class AttendanceController extends Controller
             'nextMonth' => $date->copy()->addMonth()->format('Y-m'),
             'formattedAttendanceRecords' => $formattedAttendanceRecords,
         ]);
+    }
+
+    /**
+     * スタッフ別月次勤怠をCSVで出力する。
+     */
+    public function export(Request $request): StreamedResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'user_id' => ['required', 'integer'],
+            'year_month' => ['required', 'date_format:Y-m'],
+        ]);
+
+        abort_if(
+            $validator->fails(),
+            400,
+            'CSV出力条件が正しくありません。'
+        );
+
+        $validated = $validator->validated();
+
+        $user = User::where('admin_status', false)
+            ->findOrFail((int) $validated['user_id']);
+
+        $date = Carbon::createFromFormat(
+            '!Y-m',
+            $validated['year_month'],
+            'Asia/Tokyo'
+        );
+
+        $formattedAttendanceRecords = $this->buildStaffAttendanceRecords(
+            $user,
+            $date
+        );
+
+        $fileName = sprintf(
+            'attendance_%d_%s.csv',
+            $user->id,
+            $date->format('Y-m')
+        );
+
+        return response()->streamDownload(
+            function () use ($formattedAttendanceRecords): void {
+                $stream = fopen('php://output', 'w');
+
+                if ($stream === false) {
+                    return;
+                }
+
+                // Excelで日本語が文字化けしにくいようUTF-8 BOMを付与
+                fwrite($stream, "\xEF\xBB\xBF");
+
+                fputcsv(
+                    $stream,
+                    ['日付', '出勤', '退勤', '休憩', '合計'],
+                    ',',
+                    '"',
+                    ''
+                );
+
+                $formattedAttendanceRecords->each(
+                    function (array $attendance) use ($stream): void {
+                        fputcsv(
+                            $stream,
+                            [
+                                $attendance['date'],
+                                $attendance['clock_in'],
+                                $attendance['clock_out'],
+                                $this->formatCsvTime(
+                                    $attendance['total_break_time']
+                                ),
+                                $this->formatCsvTime(
+                                    $attendance['total_time']
+                                ),
+                            ],
+                            ',',
+                            '"',
+                            ''
+                        );
+                    }
+                );
+
+                fclose($stream);
+            },
+            $fileName,
+            [
+                'Content-Type' => 'text/csv; charset=UTF-8',
+            ]
+        );
     }
 
     /**
@@ -371,5 +414,77 @@ class AttendanceController extends Controller
         return redirect()->route('admin.application.show', [
             'attendance_correct_request_id' => $application->id,
         ]);
+    }
+
+    /**
+     * スタッフの指定月の勤怠一覧を表示用形式で生成する。
+     */
+    private function buildStaffAttendanceRecords(
+        User $user,
+        Carbon $date
+    ): Collection {
+        $startOfMonth = $date->copy()->startOfMonth();
+        $endOfMonth = $date->copy()->endOfMonth();
+
+        $attendanceRecords = Attendance::with('breaks')
+            ->where('user_id', $user->id)
+            ->whereBetween('date', [
+                $startOfMonth->format('Y-m-d'),
+                $endOfMonth->format('Y-m-d'),
+            ])
+            ->get()
+            ->keyBy(function ($attendance) {
+                return $attendance->date->format('Y-m-d');
+            });
+
+        $formattedAttendanceRecords = collect();
+
+        $currentDate = $startOfMonth->copy();
+
+        while ($currentDate->lte($endOfMonth)) {
+            $attendanceRecord = $attendanceRecords->get(
+                $currentDate->format('Y-m-d')
+            );
+
+            $hasIncompleteBreak = $attendanceRecord
+                ? $attendanceRecord->breaks->contains(function ($break) {
+                    return $break->break_in && ! $break->break_out;
+                })
+                : false;
+
+            $isIncompleteAttendance = $attendanceRecord
+                && (
+                    ! $attendanceRecord->clock_in
+                    || ! $attendanceRecord->clock_out
+                    || $hasIncompleteBreak
+                );
+
+            $formattedAttendanceRecords->push([
+                'id' => $attendanceRecord?->id,
+                'date' => $currentDate->isoFormat('MM/DD(ddd)'),
+                'clock_in' => $attendanceRecord?->clock_in?->format('H:i') ?? '',
+                'clock_out' => $attendanceRecord?->clock_out?->format('H:i') ?? '',
+                'total_break_time' => $attendanceRecord && ! $isIncompleteAttendance
+                    ? $attendanceRecord->total_break_time
+                    : null,
+                'total_time' => $attendanceRecord && ! $isIncompleteAttendance
+                    ? $attendanceRecord->total_time
+                    : null,
+            ]);
+
+            $currentDate->addDay();
+        }
+
+        return $formattedAttendanceRecords;
+    }
+
+    /**
+     * CSV用に時間を画面と同じ形式へ整形する。
+     */
+    private function formatCsvTime(?string $time): string
+    {
+        return $time
+            ? Carbon::parse($time)->format('G:i')
+            : '';
     }
 }

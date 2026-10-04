@@ -155,6 +155,13 @@ Route::get(
     ->middleware(EnsureUserIsAdmin::class)
     ->name('admin.staff.attendance.index');
 
+Route::post(
+    '/export',
+    [AdminAttendanceController::class, 'export']
+)
+    ->middleware(EnsureUserIsAdmin::class)
+    ->name('admin.staff.attendance.export');
+
 Route::get(
     '/stamp_correction_request/approve/{attendance_correct_request_id}',
     [AdminAttendanceController::class, 'applicationDetail']
