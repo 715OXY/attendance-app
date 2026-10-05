@@ -73,6 +73,10 @@ Route::post('/attendance/{id}', function (Request $request, $id) {
             );
     }
 
+    if (! $user->hasVerifiedEmail()) {
+        return redirect()->route('verification.notice');
+    }
+
     return app(AttendanceController::class)
         ->requestCorrection(
             app(AttendanceCorrectionRequest::class),
@@ -93,6 +97,10 @@ Route::get('/stamp_correction_request/list', function (Request $request) {
             app(AdminAttendanceController::class),
             'applicationList',
         ]);
+    }
+
+    if (! $user->hasVerifiedEmail()) {
+        return redirect()->route('verification.notice');
     }
 
     return app()->call([
@@ -146,6 +154,13 @@ Route::get(
 )
     ->middleware(EnsureUserIsAdmin::class)
     ->name('admin.staff.attendance.index');
+
+Route::post(
+    '/export',
+    [AdminAttendanceController::class, 'export']
+)
+    ->middleware(EnsureUserIsAdmin::class)
+    ->name('admin.staff.attendance.export');
 
 Route::get(
     '/stamp_correction_request/approve/{attendance_correct_request_id}',

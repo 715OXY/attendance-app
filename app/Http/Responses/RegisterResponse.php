@@ -12,6 +12,6 @@ class RegisterResponse implements RegisterResponseContract
             return response()->json('', 201);
         }
 
-        return redirect('/attendance');
+        return redirect()->route('verification.notice');
     }
 }

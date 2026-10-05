@@ -23,6 +23,10 @@ class EnsureUserIsGeneral
 
         abort_if($user->admin_status, 403);
 
+        if (! $user->hasVerifiedEmail()) {
+            return redirect()->route('verification.notice');
+        }
+
         return $next($request);
     }
 }

@@ -317,6 +317,133 @@ class D14AdminStaffTest extends TestCase
         $response->assertSee('18:00');
     }
 
+    /**
+     * @test
+     */
+    public function 正常系_選択したユーザーと月の勤怠一覧を_csvでダウンロードできる(): void
+    {
+        // Arrange
+        $admin = User::factory()->create([
+            'admin_status' => true,
+        ]);
+
+        $user = User::factory()->create([
+            'admin_status' => false,
+        ]);
+
+        $otherUser = User::factory()->create([
+            'admin_status' => false,
+        ]);
+
+        $attendance = $this->createAttendance(
+            $user,
+            '2026-09-01',
+            '09:03:00',
+            '18:07:00'
+        );
+
+        BreakTime::create([
+            'attendance_id' => $attendance->id,
+            'break_in' => '2026-09-01 12:00:00',
+            'break_out' => '2026-09-01 13:00:00',
+        ]);
+
+        // 対象月以外の勤怠
+        $this->createAttendance(
+            $user,
+            '2026-10-01',
+            '10:00:00',
+            '19:00:00'
+        );
+
+        // 他ユーザーの勤怠
+        $this->createAttendance(
+            $otherUser,
+            '2026-09-01',
+            '06:30:00',
+            '15:30:00'
+        );
+
+        // Act
+        $response = $this
+            ->actingAs($admin)
+            ->post(
+                route('admin.staff.attendance.export'),
+                [
+                    'user_id' => $user->id,
+                    'year_month' => '2026-09',
+                ]
+            );
+
+        // Assert
+        $response->assertOk();
+
+        $this->assertStringContainsString(
+            "attendance_{$user->id}_2026-09.csv",
+            $response->headers->get('content-disposition')
+        );
+
+        $csv = $response->streamedContent();
+
+        // UTF-8 BOM
+        $this->assertStringStartsWith("\xEF\xBB\xBF", $csv);
+
+        // ヘッダー
+        $this->assertStringContainsString(
+            '日付,出勤,退勤,休憩,合計',
+            $csv
+        );
+
+        // 対象ユーザー・対象月の勤怠
+        $this->assertStringContainsString(
+            '09/01(火),09:03,18:07,1:00,8:04',
+            $csv
+        );
+
+        // 勤怠がない日は空欄
+        $this->assertStringContainsString(
+            '09/02(水),,,,',
+            $csv
+        );
+
+        // 対象月以外を含めない
+        $this->assertStringNotContainsString(
+            '10:00,19:00',
+            $csv
+        );
+
+        // 他ユーザーを含めない
+        $this->assertStringNotContainsString(
+            '06:30,15:30',
+            $csv
+        );
+    }
+
+    /**
+     * @test
+     */
+    public function 異常系_一般ユーザーは_csvを出力できない(): void
+    {
+        // Arrange
+        $user = User::factory()->create([
+            'admin_status' => false,
+        ]);
+
+        // Act
+        $response = $this
+            ->actingAs($user)
+            ->post(
+                route('admin.staff.attendance.export'),
+                [
+                    'user_id' => $user->id,
+                    'year_month' => '2026-09',
+                ]
+            );
+
+        // Assert
+        $response->assertForbidden();
+    }
+
     private function createAttendance(
         User $user,
         string $date,
