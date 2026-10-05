@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\AttendanceController as AdminAttendanceController;
 use App\Http\Controllers\Admin\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\AttendanceController;
+use App\Http\Controllers\ReportController;
 use App\Http\Middleware\EnsureUserIsAdmin;
 use App\Http\Middleware\EnsureUserIsGeneral;
 use App\Http\Requests\AdminAttendanceUpdateRequest;
@@ -36,6 +37,10 @@ Route::post('/attendance', [AttendanceController::class, 'store'])
 Route::get('/attendance/list', [AttendanceController::class, 'list'])
     ->middleware(EnsureUserIsGeneral::class)
     ->name('attendance.list');
+
+Route::get('/attendance/report', [ReportController::class, 'index'])
+    ->middleware(EnsureUserIsGeneral::class)
+    ->name('attendance.report');
 
 Route::get('/attendance/detail/{id}', [AttendanceController::class, 'show'])
     ->middleware(EnsureUserIsGeneral::class)
