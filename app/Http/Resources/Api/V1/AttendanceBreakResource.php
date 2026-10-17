@@ -11,6 +11,7 @@ class AttendanceBreakResource extends JsonResource
     /**
      * Transform the resource into an array.
      *
+     * @param  Request  $request  現在のAPIリクエスト
      * @return array<string, mixed>
      */
     public function toArray(Request $request): array

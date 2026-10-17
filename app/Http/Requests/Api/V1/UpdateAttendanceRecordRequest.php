@@ -4,6 +4,7 @@ namespace App\Http\Requests\Api\V1;
 
 use App\Models\Attendance;
 use Illuminate\Contracts\Validation\ValidationRule;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -11,7 +12,9 @@ use Illuminate\Validation\Validator;
 class UpdateAttendanceRecordRequest extends FormRequest
 {
     /**
-     * Determine if the user is authorized to make this request.
+     * Policyに基づいて対象勤怠の更新を許可するか判定する。
+     *
+     * @return bool 更新権限があるか
      */
     public function authorize(): bool
     {
@@ -22,7 +25,7 @@ class UpdateAttendanceRecordRequest extends FormRequest
     }
 
     /**
-     * Get the validation rules that apply to the request.
+     * 勤怠の部分更新に使用する検証ルールを定義する。
      *
      * @return array<string, ValidationRule|array<mixed>|string>
      */
@@ -38,7 +41,7 @@ class UpdateAttendanceRecordRequest extends FormRequest
                 Rule::unique('attendances', 'date')
                     ->ignore($attendance?->id)
                     ->where(
-                        fn ($query) => $query->where(
+                        fn (Builder $query): Builder => $query->where(
                             'user_id',
                             $attendance?->user_id
                         )
@@ -64,7 +67,9 @@ class UpdateAttendanceRecordRequest extends FormRequest
     }
 
     /**
-     * Configure the validator instance.
+     * 既存値と送信値を組み合わせ、出退勤時刻の前後関係を検証する。
+     *
+     * @param  Validator  $validator  追加検証を登録するバリデータ
      */
     public function withValidator(Validator $validator): void
     {
@@ -104,7 +109,9 @@ class UpdateAttendanceRecordRequest extends FormRequest
     }
 
     /**
-     * Get custom messages for validator errors.
+     * 入力検証に使用する日本語メッセージを定義する。
+     *
+     * @return array<string, string> 検証ルールに対応するエラーメッセージ
      */
     public function messages(): array
     {
@@ -123,7 +130,9 @@ class UpdateAttendanceRecordRequest extends FormRequest
     }
 
     /**
-     * Get the attendance record from route model binding.
+     * ルートモデルバインディングで取得した勤怠を返す。
+     *
+     * @return Attendance|null 更新対象の勤怠。取得できなければnull
      */
     private function attendanceRecord(): ?Attendance
     {

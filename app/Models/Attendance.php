@@ -28,6 +28,8 @@ class Attendance extends Model
 
     /**
      * 勤怠に紐づくユーザーを取得する。
+     *
+     * @return BelongsTo 勤怠の所有ユーザーとのリレーション
      */
     public function user(): BelongsTo
     {
@@ -36,6 +38,8 @@ class Attendance extends Model
 
     /**
      * 勤怠に紐づく休憩情報を取得する。
+     *
+     * @return HasMany 休憩記録とのリレーション
      */
     public function breaks(): HasMany
     {
@@ -44,6 +48,8 @@ class Attendance extends Model
 
     /**
      * 勤怠に紐づく修正申請を取得する。
+     *
+     * @return HasMany 勤怠修正申請とのリレーション
      */
     public function correctionRequests(): HasMany
     {
@@ -51,24 +57,19 @@ class Attendance extends Model
     }
 
     /**
-     * 合計休憩時間を算出する。
+     * 終了済みの休憩時間を合計する。
+     *
+     * @return string HH:MM:SS形式の合計休憩時間
      */
     public function getTotalBreakTimeAttribute(): string
     {
-        $totalBreakSeconds = $this->breaks->sum(function ($break) {
-            if ($break->break_in && $break->break_out) {
-                return Carbon::parse($break->break_in)
-                    ->diffInSeconds(Carbon::parse($break->break_out));
-            }
-
-            return 0;
-        });
-
-        return gmdate('H:i:s', $totalBreakSeconds);
+        return gmdate('H:i:s', $this->calculateTotalBreakSeconds());
     }
 
     /**
      * 休憩時間を差し引いた実勤務時間を算出する。
+     *
+     * @return string|null HH:MM:SS形式の勤務時間。出退勤が未完了ならnull
      */
     public function getTotalTimeAttribute(): ?string
     {
@@ -79,17 +80,25 @@ class Attendance extends Model
         $workSeconds = Carbon::parse($this->clock_in)
             ->diffInSeconds(Carbon::parse($this->clock_out));
 
-        $breakSeconds = $this->breaks->sum(function ($break) {
-            if ($break->break_in && $break->break_out) {
-                return Carbon::parse($break->break_in)
-                    ->diffInSeconds(Carbon::parse($break->break_out));
-            }
-
-            return 0;
-        });
-
-        $totalWorkSeconds = $workSeconds - $breakSeconds;
+        $totalWorkSeconds = $workSeconds - $this->calculateTotalBreakSeconds();
 
         return gmdate('H:i:s', $totalWorkSeconds);
+    }
+
+    /**
+     * 開始・終了の両時刻がある休憩について、合計秒数を算出する。
+     *
+     * @return int 終了済み休憩の合計秒数
+     */
+    private function calculateTotalBreakSeconds(): int
+    {
+        return (int) $this->breaks->sum(function (BreakTime $break): int {
+            if (! $break->break_in || ! $break->break_out) {
+                return 0;
+            }
+
+            return (int) Carbon::parse($break->break_in)
+                ->diffInSeconds(Carbon::parse($break->break_out));
+        });
     }
 }

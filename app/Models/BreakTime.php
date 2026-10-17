@@ -25,6 +25,8 @@ class BreakTime extends Model
 
     /**
      * 休憩情報に紐づく勤怠情報を取得する。
+     *
+     * @return BelongsTo 休憩が属する勤怠とのリレーション
      */
     public function attendance(): BelongsTo
     {

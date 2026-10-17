@@ -1,8 +1,15 @@
 <?php
 
+use App\Http\Controllers\Admin\AttendanceApplicationController as AdminAttendanceApplicationController;
 use App\Http\Controllers\Admin\AttendanceController as AdminAttendanceController;
+use App\Http\Controllers\Admin\AttendanceExportController as AdminAttendanceExportController;
 use App\Http\Controllers\Admin\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\Admin\StaffController as AdminStaffController;
+use App\Http\Controllers\AttendanceApplicationController;
 use App\Http\Controllers\AttendanceController;
+use App\Http\Controllers\AttendanceCorrectionController;
+use App\Http\Controllers\AttendanceListController;
+use App\Http\Controllers\AttendanceStampController;
 use App\Http\Controllers\ReportController;
 use App\Http\Middleware\EnsureUserIsAdmin;
 use App\Http\Middleware\EnsureUserIsGeneral;
@@ -30,11 +37,11 @@ Route::get('/attendance', [AttendanceController::class, 'index'])
     ->middleware(EnsureUserIsGeneral::class)
     ->name('attendance.index');
 
-Route::post('/attendance', [AttendanceController::class, 'store'])
+Route::post('/attendance', [AttendanceStampController::class, 'store'])
     ->middleware(EnsureUserIsGeneral::class)
     ->name('attendance.store');
 
-Route::get('/attendance/list', [AttendanceController::class, 'list'])
+Route::get('/attendance/list', [AttendanceListController::class, 'index'])
     ->middleware(EnsureUserIsGeneral::class)
     ->name('attendance.list');
 
@@ -82,8 +89,8 @@ Route::post('/attendance/{id}', function (Request $request, $id) {
         return redirect()->route('verification.notice');
     }
 
-    return app(AttendanceController::class)
-        ->requestCorrection(
+    return app(AttendanceCorrectionController::class)
+        ->store(
             app(AttendanceCorrectionRequest::class),
             $id
         );
@@ -99,8 +106,8 @@ Route::get('/stamp_correction_request/list', function (Request $request) {
 
     if ($user->admin_status) {
         return app()->call([
-            app(AdminAttendanceController::class),
-            'applicationList',
+            app(AdminAttendanceApplicationController::class),
+            'index',
         ]);
     }
 
@@ -109,13 +116,13 @@ Route::get('/stamp_correction_request/list', function (Request $request) {
     }
 
     return app()->call([
-        app(AttendanceController::class),
-        'applicationList',
+        app(AttendanceApplicationController::class),
+        'index',
     ]);
 })
     ->name('attendance.application.list');
 
-Route::get('/application/{id}', [AttendanceController::class, 'applicationDetail'])
+Route::get('/application/{id}', [AttendanceApplicationController::class, 'show'])
     ->middleware(EnsureUserIsGeneral::class)
     ->name('attendance.application.detail');
 
@@ -148,35 +155,35 @@ Route::get(
 
 Route::get(
     '/admin/staff/list',
-    [AdminAttendanceController::class, 'staffList']
+    [AdminStaffController::class, 'staffList']
 )
     ->middleware(EnsureUserIsAdmin::class)
     ->name('admin.staff.index');
 
 Route::get(
     '/admin/attendance/staff/{id}',
-    [AdminAttendanceController::class, 'staffAttendanceList']
+    [AdminStaffController::class, 'staffAttendanceList']
 )
     ->middleware(EnsureUserIsAdmin::class)
     ->name('admin.staff.attendance.index');
 
 Route::post(
     '/export',
-    [AdminAttendanceController::class, 'export']
+    [AdminAttendanceExportController::class, 'export']
 )
     ->middleware(EnsureUserIsAdmin::class)
     ->name('admin.staff.attendance.export');
 
 Route::get(
     '/stamp_correction_request/approve/{attendance_correct_request_id}',
-    [AdminAttendanceController::class, 'applicationDetail']
+    [AdminAttendanceApplicationController::class, 'show']
 )
     ->middleware(EnsureUserIsAdmin::class)
     ->name('admin.application.show');
 
 Route::post(
     '/stamp_correction_request/approve/{attendance_correct_request_id}',
-    [AdminAttendanceController::class, 'approveApplication']
+    [AdminAttendanceApplicationController::class, 'approve']
 )
     ->middleware(EnsureUserIsAdmin::class)
     ->name('admin.application.approve');
