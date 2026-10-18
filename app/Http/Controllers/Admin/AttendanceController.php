@@ -5,21 +5,22 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\AdminAttendanceUpdateRequest;
 use App\Models\Attendance;
-use App\Models\AttendanceCorrectionRequest;
+use App\Models\BreakTime;
 use App\Models\User;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
-use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AttendanceController extends Controller
 {
     /**
      * 管理者用の日次勤怠一覧を表示する。
+     *
+     * @param  Request  $request  表示対象の日付を含むリクエスト
+     * @return View 管理者用の日次勤怠一覧画面
      */
     public function index(Request $request): View
     {
@@ -62,151 +63,11 @@ class AttendanceController extends Controller
     }
 
     /**
-     * スタッフ一覧を表示する。
-     */
-    public function staffList(): View
-    {
-        $users = User::where('admin_status', false)
-            ->orderBy('id')
-            ->get();
-
-        return view('admin.staff-list', [
-            'users' => $users,
-        ]);
-    }
-
-    /**
-     * スタッフ別の月次勤怠一覧を表示する。
-     */
-    public function staffAttendanceList(Request $request, int $id): View
-    {
-        $validator = Validator::make($request->query(), [
-            'date' => ['sometimes', 'required', 'date_format:Y-m'],
-        ]);
-
-        abort_if(
-            $validator->fails(),
-            400,
-            '年月の指定が正しくありません。'
-        );
-
-        $validated = $validator->validated();
-
-        $date = isset($validated['date'])
-            ? Carbon::createFromFormat(
-                '!Y-m',
-                $validated['date'],
-                'Asia/Tokyo'
-            )
-            : now('Asia/Tokyo')->startOfMonth();
-
-        $user = User::where('admin_status', false)
-            ->findOrFail($id);
-
-        $formattedAttendanceRecords = $this->buildStaffAttendanceRecords(
-            $user,
-            $date
-        );
-
-        return view('admin.staff-attendance-list', [
-            'user' => $user,
-            'date' => $date,
-            'previousMonth' => $date->copy()->subMonth()->format('Y-m'),
-            'nextMonth' => $date->copy()->addMonth()->format('Y-m'),
-            'formattedAttendanceRecords' => $formattedAttendanceRecords,
-        ]);
-    }
-
-    /**
-     * スタッフ別月次勤怠をCSVで出力する。
-     */
-    public function export(Request $request): StreamedResponse
-    {
-        $validator = Validator::make($request->all(), [
-            'user_id' => ['required', 'integer'],
-            'year_month' => ['required', 'date_format:Y-m'],
-        ]);
-
-        abort_if(
-            $validator->fails(),
-            400,
-            'CSV出力条件が正しくありません。'
-        );
-
-        $validated = $validator->validated();
-
-        $user = User::where('admin_status', false)
-            ->findOrFail((int) $validated['user_id']);
-
-        $date = Carbon::createFromFormat(
-            '!Y-m',
-            $validated['year_month'],
-            'Asia/Tokyo'
-        );
-
-        $formattedAttendanceRecords = $this->buildStaffAttendanceRecords(
-            $user,
-            $date
-        );
-
-        $fileName = sprintf(
-            'attendance_%d_%s.csv',
-            $user->id,
-            $date->format('Y-m')
-        );
-
-        return response()->streamDownload(
-            function () use ($formattedAttendanceRecords): void {
-                $stream = fopen('php://output', 'w');
-
-                if ($stream === false) {
-                    return;
-                }
-
-                // Excelで日本語が文字化けしにくいようUTF-8 BOMを付与
-                fwrite($stream, "\xEF\xBB\xBF");
-
-                fputcsv(
-                    $stream,
-                    ['日付', '出勤', '退勤', '休憩', '合計'],
-                    ',',
-                    '"',
-                    ''
-                );
-
-                $formattedAttendanceRecords->each(
-                    function (array $attendance) use ($stream): void {
-                        fputcsv(
-                            $stream,
-                            [
-                                $attendance['date'],
-                                $attendance['clock_in'],
-                                $attendance['clock_out'],
-                                $this->formatCsvTime(
-                                    $attendance['total_break_time']
-                                ),
-                                $this->formatCsvTime(
-                                    $attendance['total_time']
-                                ),
-                            ],
-                            ',',
-                            '"',
-                            ''
-                        );
-                    }
-                );
-
-                fclose($stream);
-            },
-            $fileName,
-            [
-                'Content-Type' => 'text/csv; charset=UTF-8',
-            ]
-        );
-    }
-
-    /**
      * 管理者用の勤怠詳細画面を表示する。
+     *
+     * @param  Request  $request  入力エラー時の再表示情報を含むリクエスト
+     * @param  int  $id  表示対象の勤怠ID
+     * @return View 管理者用の勤怠詳細画面
      */
     public function show(Request $request, int $id): View
     {
@@ -222,7 +83,7 @@ class AttendanceController extends Controller
             ->first();
 
         $breaks = $attendance->breaks
-            ->map(function ($break) {
+            ->map(function (BreakTime $break): array {
                 return [
                     'break_in' => $break->break_in?->format('H:i') ?? '',
                     'break_out' => $break->break_out?->format('H:i') ?? '',
@@ -281,6 +142,10 @@ class AttendanceController extends Controller
 
     /**
      * 管理者による勤怠情報の直接修正を行う。
+     *
+     * @param  AdminAttendanceUpdateRequest  $request  検証済みの修正内容
+     * @param  int  $id  修正対象の勤怠ID
+     * @return RedirectResponse 勤怠詳細画面、または入力元へのリダイレクト
      */
     public function update(
         AdminAttendanceUpdateRequest $request,
@@ -307,7 +172,7 @@ class AttendanceController extends Controller
 
         $date = $attendance->date->format('Y-m-d');
 
-        DB::transaction(function () use ($attendance, $validated, $date) {
+        DB::transaction(function () use ($attendance, $validated, $date): void {
             $attendance->update([
                 'clock_in' => $date.' '.$validated['new_clock_in'].':00',
                 'clock_out' => $date.' '.$validated['new_clock_out'].':00',
@@ -335,156 +200,5 @@ class AttendanceController extends Controller
 
         return redirect()
             ->route('admin.attendance.show', ['id' => $attendance->id]);
-    }
-
-    /**
-     * 全スタッフの修正申請一覧を表示する。
-     */
-    public function applicationList(): View
-    {
-        $applications = AttendanceCorrectionRequest::with([
-            'user',
-            'AttendanceRecord',
-        ])
-            ->latest('created_at')
-            ->get();
-
-        return view('admin.admin-application-list', [
-            'applications' => $applications,
-        ]);
-    }
-
-    /**
-     * 修正申請の詳細を表示する。
-     */
-    public function applicationDetail(int $attendance_correct_request_id): View
-    {
-        $application = AttendanceCorrectionRequest::with([
-            'user',
-            'attendance',
-            'proposalBreaks',
-        ])->findOrFail($attendance_correct_request_id);
-
-        return view('admin.admin-application-detail', [
-            'application' => $application,
-            'user' => $application->user,
-        ]);
-    }
-
-    /**
-     * 修正申請を承認し、正式な勤怠情報へ反映する。
-     */
-    public function approveApplication(
-        int $attendance_correct_request_id
-    ): RedirectResponse {
-        $application = AttendanceCorrectionRequest::with([
-            'attendance.breaks',
-            'correctionBreaks',
-        ])->findOrFail($attendance_correct_request_id);
-
-        if ($application->status === 1) {
-            return redirect()->route('admin.application.show', [
-                'attendance_correct_request_id' => $application->id,
-            ]);
-        }
-
-        DB::transaction(function () use ($application) {
-            $attendance = $application->attendance;
-
-            $attendance->update([
-                'clock_in' => $application->requested_clock_in,
-                'clock_out' => $application->requested_clock_out,
-                'comment' => $application->requested_comment,
-            ]);
-
-            $attendance->breaks()->delete();
-
-            foreach ($application->correctionBreaks as $correctionBreak) {
-                $attendance->breaks()->create([
-                    'break_in' => $correctionBreak->requested_break_in,
-                    'break_out' => $correctionBreak->requested_break_out,
-                ]);
-            }
-
-            $application->update([
-                'status' => 1,
-            ]);
-        });
-
-        return redirect()->route('admin.application.show', [
-            'attendance_correct_request_id' => $application->id,
-        ]);
-    }
-
-    /**
-     * スタッフの指定月の勤怠一覧を表示用形式で生成する。
-     */
-    private function buildStaffAttendanceRecords(
-        User $user,
-        Carbon $date
-    ): Collection {
-        $startOfMonth = $date->copy()->startOfMonth();
-        $endOfMonth = $date->copy()->endOfMonth();
-
-        $attendanceRecords = Attendance::with('breaks')
-            ->where('user_id', $user->id)
-            ->whereBetween('date', [
-                $startOfMonth->format('Y-m-d'),
-                $endOfMonth->format('Y-m-d'),
-            ])
-            ->get()
-            ->keyBy(function ($attendance) {
-                return $attendance->date->format('Y-m-d');
-            });
-
-        $formattedAttendanceRecords = collect();
-
-        $currentDate = $startOfMonth->copy();
-
-        while ($currentDate->lte($endOfMonth)) {
-            $attendanceRecord = $attendanceRecords->get(
-                $currentDate->format('Y-m-d')
-            );
-
-            $hasIncompleteBreak = $attendanceRecord
-                ? $attendanceRecord->breaks->contains(function ($break) {
-                    return $break->break_in && ! $break->break_out;
-                })
-                : false;
-
-            $isIncompleteAttendance = $attendanceRecord
-                && (
-                    ! $attendanceRecord->clock_in
-                    || ! $attendanceRecord->clock_out
-                    || $hasIncompleteBreak
-                );
-
-            $formattedAttendanceRecords->push([
-                'id' => $attendanceRecord?->id,
-                'date' => $currentDate->isoFormat('MM/DD(ddd)'),
-                'clock_in' => $attendanceRecord?->clock_in?->format('H:i') ?? '',
-                'clock_out' => $attendanceRecord?->clock_out?->format('H:i') ?? '',
-                'total_break_time' => $attendanceRecord && ! $isIncompleteAttendance
-                    ? $attendanceRecord->total_break_time
-                    : null,
-                'total_time' => $attendanceRecord && ! $isIncompleteAttendance
-                    ? $attendanceRecord->total_time
-                    : null,
-            ]);
-
-            $currentDate->addDay();
-        }
-
-        return $formattedAttendanceRecords;
-    }
-
-    /**
-     * CSV用に時間を画面と同じ形式へ整形する。
-     */
-    private function formatCsvTime(?string $time): string
-    {
-        return $time
-            ? Carbon::parse($time)->format('G:i')
-            : '';
     }
 }

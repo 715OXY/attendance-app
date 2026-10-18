@@ -8,6 +8,7 @@ use App\Http\Requests\Api\V1\StoreAttendanceRecordRequest;
 use App\Http\Requests\Api\V1\UpdateAttendanceRecordRequest;
 use App\Http\Resources\AttendanceRecordResource;
 use App\Models\Attendance;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
@@ -15,7 +16,10 @@ use Illuminate\Http\Response;
 class AttendanceRecordController extends Controller
 {
     /**
-     * Display a listing of the resource.
+     * 検索条件に一致する勤怠をページ単位で取得する。
+     *
+     * @param  IndexAttendanceRecordRequest  $request  検証済みの検索条件
+     * @return AnonymousResourceCollection ページ情報を含む勤怠一覧
      */
     public function index(IndexAttendanceRecordRequest $request): AnonymousResourceCollection
     {
@@ -25,21 +29,21 @@ class AttendanceRecordController extends Controller
             ->with(['user', 'breaks'])
             ->when(
                 $request->filled('user_id'),
-                fn ($query) => $query->where(
+                fn (Builder $query): Builder => $query->where(
                     'user_id',
                     $request->integer('user_id')
                 )
             )
             ->when(
                 $request->filled('date'),
-                fn ($query) => $query->whereDate(
+                fn (Builder $query): Builder => $query->whereDate(
                     'date',
                     $request->input('date')
                 )
             )
             ->when(
                 $request->filled('month'),
-                function ($query) use ($request) {
+                function (Builder $query) use ($request): void {
                     [$year, $month] = explode(
                         '-',
                         $request->input('month')
@@ -59,7 +63,10 @@ class AttendanceRecordController extends Controller
     }
 
     /**
-     * Store a newly created resource in storage.
+     * 認証ユーザーの勤怠を新規登録する。
+     *
+     * @param  StoreAttendanceRecordRequest  $request  検証済みの登録内容
+     * @return JsonResponse 登録した勤怠とHTTP 201のレスポンス
      */
     public function store(StoreAttendanceRecordRequest $request): JsonResponse
     {
@@ -87,7 +94,10 @@ class AttendanceRecordController extends Controller
     }
 
     /**
-     * Display the specified resource.
+     * 関連情報を含む勤怠詳細を返す。
+     *
+     * @param  Attendance  $attendanceRecord  表示対象の勤怠
+     * @return AttendanceRecordResource 勤怠詳細のAPIリソース
      */
     public function show(Attendance $attendanceRecord): AttendanceRecordResource
     {
@@ -101,7 +111,11 @@ class AttendanceRecordController extends Controller
     }
 
     /**
-     * Update the specified resource in storage.
+     * 未送信の項目を保持し、送信された項目で勤怠を更新する。
+     *
+     * @param  UpdateAttendanceRecordRequest  $request  認可・検証済みの更新内容
+     * @param  Attendance  $attendanceRecord  更新対象の勤怠
+     * @return AttendanceRecordResource 更新後の勤怠リソース
      */
     public function update(
         UpdateAttendanceRecordRequest $request,
@@ -162,7 +176,10 @@ class AttendanceRecordController extends Controller
     }
 
     /**
-     * Remove the specified attendance record.
+     * 認可されたユーザーによる勤怠削除を行う。
+     *
+     * @param  Attendance  $attendanceRecord  削除対象の勤怠
+     * @return Response HTTP 204のレスポンス
      */
     public function destroy(Attendance $attendanceRecord): Response
     {

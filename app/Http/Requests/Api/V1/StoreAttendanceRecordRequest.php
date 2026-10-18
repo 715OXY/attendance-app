@@ -3,13 +3,16 @@
 namespace App\Http\Requests\Api\V1;
 
 use Illuminate\Contracts\Validation\ValidationRule;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class StoreAttendanceRecordRequest extends FormRequest
 {
     /**
-     * Determine if the user is authorized to make this request.
+     * このRequestでは追加の認可判定を行わない。
+     *
+     * @return bool 常にtrue。認証はルート側で行う
      */
     public function authorize(): bool
     {
@@ -17,7 +20,7 @@ class StoreAttendanceRecordRequest extends FormRequest
     }
 
     /**
-     * Get the validation rules that apply to the request.
+     * 勤怠の新規登録に使用する検証ルールを定義する。
      *
      * @return array<string, ValidationRule|array<mixed>|string>
      */
@@ -29,7 +32,7 @@ class StoreAttendanceRecordRequest extends FormRequest
                 'date_format:Y-m-d',
                 Rule::unique('attendances', 'date')
                     ->where(
-                        fn ($query) => $query->where(
+                        fn (Builder $query): Builder => $query->where(
                             'user_id',
                             $this->user()?->id
                         )
@@ -53,7 +56,9 @@ class StoreAttendanceRecordRequest extends FormRequest
     }
 
     /**
-     * Get custom messages for validator errors.
+     * 入力検証に使用する日本語メッセージを定義する。
+     *
+     * @return array<string, string> 検証ルールに対応するエラーメッセージ
      */
     public function messages(): array
     {

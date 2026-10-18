@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -24,6 +25,8 @@ class AttendanceCorrectionBreak extends Model
 
     /**
      * 修正申請に紐づく休憩情報を取得する。
+     *
+     * @return BelongsTo 休憩修正が属する申請とのリレーション
      */
     public function attendanceCorrectionRequest(): BelongsTo
     {
@@ -32,21 +35,25 @@ class AttendanceCorrectionBreak extends Model
 
     /**
      * 提供Blade用の休憩開始時刻を返す。
+     *
+     * @return Attribute 提供Blade用の休憩時刻の属性定義
      */
     protected function breakIn(): Attribute
     {
         return Attribute::make(
-            get: fn () => $this->requested_break_in,
+            get: fn (): ?CarbonInterface => $this->requested_break_in,
         );
     }
 
     /**
      * 提供Blade用の休憩終了時刻を返す。
+     *
+     * @return Attribute 提供Blade用の休憩時刻の属性定義
      */
     protected function breakOut(): Attribute
     {
         return Attribute::make(
-            get: fn () => $this->requested_break_out,
+            get: fn (): ?CarbonInterface => $this->requested_break_out,
         );
     }
 }

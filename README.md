@@ -1,28 +1,67 @@
 # COACHTECH 勤怠管理アプリ
 
-## 概要
+一般ユーザーの出退勤・休憩と、管理者による勤怠確認・修正申請の承認を管理するWebアプリケーションです。
 
-ユーザーの勤怠管理を目的としたWebアプリケーションです。
+## 主な機能
 
-一般ユーザーは、出勤・退勤・休憩の打刻、勤怠情報の確認、勤怠修正申請などを行うことができます。
+### 一般ユーザー
 
-管理者は、スタッフの勤怠情報の確認・修正、勤怠修正申請の承認などを行うことができます。
+- 会員登録・ログイン・ログアウト
+- メール認証・認証メールの再送
+- 出勤・退勤・休憩開始・休憩終了の打刻
+- 自分の月次勤怠一覧・勤怠詳細の確認
+- 勤怠修正申請・承認待ち／承認済み申請の確認
+- マイ勤怠レポートによる勤務統計・月別推移・異常値の確認
 
-> **Note**  
-> 本READMEは開発進行に合わせて随時更新します。
+### 管理者
 
----
+- 管理者ログイン・ログアウト
+- 日次勤怠一覧・勤怠詳細の確認と修正
+- スタッフ一覧・スタッフ別月次勤怠の確認
+- スタッフ別月次勤怠のCSV出力
+- 勤怠修正申請の確認・承認
+
+### 公開API
+
+- 認証不要の勤怠一覧・詳細取得
+- Laravel Sanctum認証による勤怠登録・更新・削除
+- 更新・削除は本人または管理者に限定
+- 検索・ページネーション・PUT／PATCHによる部分更新
+
+## 使用技術
+
+| 技術 | 確認済みバージョン・用途 |
+| --- | --- |
+| PHP | 8.2.34 |
+| Laravel | 10.50.3 |
+| MySQL | 8.4.11 |
+| Node.js | 24.21.0 |
+| npm | 12.2.0 |
+| Laravel Sail | 1.67.0／Docker開発環境 |
+| Laravel Fortify | 1.36.2／Web認証・メール認証 |
+| Laravel Sanctum | 3.3.3／API認証 |
+| PHPUnit | 10.5.64／自動テスト |
+| Laravel Pint | 1.30.4／コードスタイル確認 |
+| Vite | 5系／フロントエンドビルド |
+
+上記は開発環境で確認したバージョンです。PHPの起動環境は`compose.yaml`のSail 8.2、MySQLは`mysql:8.4`を使用します。依存パッケージは各ロックファイルに従ってインストールします。
 
 ## 環境構築
 
-### 1. リポジトリをクローン
+WindowsではWSL2上のLinux環境を使用し、Docker DesktopのWSL連携を有効にしてください。以降のコマンドはLinux側のターミナルで実行します。GitとDocker Composeを使用します。
+
+### 1. リポジトリを取得
 
 ```bash
-git clone <Repository URL>
-cd <Repository Name>
+git clone https://github.com/715OXY/attendance-app.git
+cd attendance-app
 ```
 
-### 2. Composerパッケージのインストール
+非公開リポジトリの場合は、アクセス権限のあるGitHubアカウントで取得してください。
+
+### 2. Composer依存パッケージをインストール
+
+課題指定のComposer用コンテナで依存パッケージを取得します。このコンテナは初回インストール用で、アプリケーションの起動用PHPとは別です。
 
 ```bash
 docker run --rm \
@@ -34,15 +73,19 @@ docker run --rm \
   composer install
 ```
 
-### 3. 環境変数ファイルの作成
+### 3. 環境変数を設定
 
 ```bash
 cp .env.example .env
 ```
 
-`.env` のデータベースおよびメール設定を、開発環境に合わせて設定します。
+`.env`の該当項目を次のローカル開発用設定に変更してください。
 
-```env
+```dotenv
+APP_ENV=local
+APP_DEBUG=true
+APP_URL=http://localhost
+
 DB_CONNECTION=mysql
 DB_HOST=mysql
 DB_PORT=3306
@@ -53,160 +96,183 @@ DB_PASSWORD=password
 MAIL_MAILER=smtp
 MAIL_HOST=mailpit
 MAIL_PORT=1025
+MAIL_USERNAME=null
+MAIL_PASSWORD=null
+MAIL_ENCRYPTION=null
+MAIL_FROM_ADDRESS="hello@example.com"
+MAIL_FROM_NAME="${APP_NAME}"
 ```
 
-### 4. Laravel Sailを起動
+記載しているDB接続情報はローカル開発用の例です。実運用の認証情報、APIトークン、生成したAPP_KEY、`.env`はGitへ登録しません。
+
+### 4. 提供画像を手動配置
+
+提供リポジトリの`public/images/`から、次の画像を本アプリの`public/images/`へ手動でコピーしてください。
+
+- `logo.svg`
+- `arrow.png`
+- `calender.png`（提供ファイルの綴りのまま使用）
+
+取得元：[提供Bladeテンプレートリポジトリ](https://github.com/coachtech-prepared-file/Preparedblade-mockcase-Attendance)
+
+本アプリは応用機能用の`advanced`ブランチの提供リソースを使用します。提供リポジトリは本アプリとは別のフォルダへ取得してください。
+
+```bash
+git clone -b advanced https://github.com/coachtech-prepared-file/Preparedblade-mockcase-Attendance.git ../Preparedblade-mockcase-Attendance
+mkdir -p public/images
+```
+
+エクスプローラー等で画像をコピーします。`public/images/`はGit管理対象外です。提供済みのBladeは変更せず、クローン済みアプリの`resources/`を再度上書きする作業は不要です。
+
+### 5. Sailを起動
 
 ```bash
 ./vendor/bin/sail up -d
 ```
 
-### 5. アプリケーションキーを生成
+以降は、次のエイリアスを設定して`sail`を使用します。新しいターミナルでも利用する場合は、シェルの設定ファイルへ登録してください。
 
 ```bash
-./vendor/bin/sail artisan key:generate
+alias sail='[ -f sail ] && bash sail || bash vendor/bin/sail'
 ```
 
-### 6. マイグレーション・シーディングを実行
+初回起動ではコンテナの構築とMySQLの初期化に時間がかかります。
+
+### 6. アプリケーションキーとDBを初期化
 
 ```bash
-./vendor/bin/sail artisan migrate --seed
+sail artisan key:generate
+sail artisan migrate --seed
 ```
 
-### 7. フロントエンド環境を構築
+MySQLの起動直後に接続エラーとなる場合は、初期化完了後に`migrate --seed`を実行してください。
+
+### 7. フロントエンドを起動
 
 ```bash
-./vendor/bin/sail npm install
-./vendor/bin/sail npm run dev
+sail npm ci
+sail npm run dev
 ```
 
-以上で環境構築は完了です。
+Viteの開発サーバーを動かしたまま、ブラウザーでアプリへアクセスします。停止は`Ctrl+C`です。
 
----
+## アクセス先・動作確認用アカウント
 
-## 使用技術（実行環境）
+| 用途 | URL |
+| --- | --- |
+| 一般ユーザーログイン | http://localhost/login |
+| 一般ユーザー会員登録 | http://localhost/register |
+| 管理者ログイン | http://localhost/admin/login |
+| phpMyAdmin | http://localhost:8080/ |
+| Mailpit | http://localhost:8025/ |
 
-| 技術            | バージョン・用途     |
-| --------------- | -------------------- |
-| PHP             | 8.2                  |
-| Laravel         | 10.x                 |
-| MySQL           | 8.4                  |
-| Laravel Sail    | Docker開発環境       |
-| Docker          | コンテナ環境         |
-| Laravel Fortify | 認証機能             |
-| Vite            | フロントエンドビルド |
+上記URLは既定のポート設定の場合です。
 
-※ 指定された技術スタック以外のComposerパッケージは、原則として追加しません。
+| 種別 | 氏名 | メールアドレス | パスワード |
+| --- | --- | --- | --- |
+| 一般 | 一般ユーザー1 | user1@example.com | password |
+| 一般 | 一般ユーザー2 | user2@example.com | password |
+| 管理者 | 管理者ユーザー | user3@example.com | password |
 
-※ 日本語化については `laravel-lang/*` 等の外部翻訳パッケージを使用せず、`lang/` 配下へのメッセージファイルの配置によって対応します。
+いずれもSeederが作成するローカル動作確認専用アカウントで、メール認証済みです。会員登録時の認証メールはMailpitで確認できます。
 
----
+Seederは一般ユーザー1に当月を含む過去6か月分のレポート確認用データを作成します。過去5か月は各月15日分、当月は17日分です。一般ユーザー2と管理者には前月の勤怠データを作成するため、両アカウントの月次一覧を確認する際は前月を選択してください。
 
-## ER図
+## 日常の起動・停止
 
-**TODO：データベース設計完了後にER図を掲載します。**
+起動時はリポジトリ直下で次を実行します。
 
-掲載予定例：
-
-```text
-docs/er-diagram.png
+```bash
+sail up -d
+sail npm run dev
 ```
 
----
+停止時はViteを`Ctrl+C`で終了してから、コンテナを停止します。
 
-## URL
+```bash
+sail down
+```
 
-| サービス         | URL                    |
-| ---------------- | ---------------------- |
-| アプリケーション | http://localhost/      |
-| phpMyAdmin       | http://localhost:8080/ |
-| Mailpit          | http://localhost:8025/ |
+ビルド済みアセットを使用する場合は、Viteの開発サーバーを停止してから次を実行します。
 
----
+```bash
+sail npm run build
+```
 
-## ログイン情報
+開発サーバー停止後に`public/hot`が残っている場合は、この生成ファイルを削除してからビルド済みアセットの表示を確認します。
 
-### 一般ユーザー
+## DBの再初期化
 
-| ユーザー | メールアドレス    | パスワード |
-| -------- | ----------------- | ---------- |
-| user1    | user1@example.com | password   |
-| user2    | user2@example.com | password   |
+次のコマンドは、接続先DBの全テーブルと保存データを削除して再作成します。ローカルの動作確認データを初期状態へ戻す場合だけ実行してください。
 
-### 管理者ユーザー
+```bash
+sail artisan migrate:fresh --seed
+```
 
-| ユーザー | メールアドレス    | パスワード |
-| -------- | ----------------- | ---------- |
-| user3    | user3@example.com | password   |
+Seederの再実行だけでは既存アカウントと重複するため、初期状態に戻す用途では上記コマンドを使用します。
 
-※ 上記ユーザーはSeederによって作成します。
+## テスト・コードスタイル確認
 
-※ `user1`、`user2` は一般ユーザー、`user3` は管理者ユーザー（`admin_status = true`）として作成します。
+`phpunit.xml`は、アプリ用DBと別の`testing`データベースを指定しています。テスト実行前にMySQLとアプリのコンテナを起動してください。
 
-※ 各ユーザーはメール認証済みの状態で作成します。
+```bash
+sail artisan config:clear
+sail artisan test
+sail bin pint --test
+```
 
----
+特定のテストだけを実行する例：
 
-## 主な機能
+```bash
+sail artisan test --filter=D21NPlusOneTest
+```
 
-### 一般ユーザー
+確認済みの結果：全159件成功・707 assertions、Pintは154ファイル成功。
 
-- 会員登録・ログイン
-- 勤怠打刻
-- 勤怠一覧表示
-- 勤怠詳細表示
-- 勤怠修正申請
-- 修正申請一覧表示
+MySQLボリュームの初回作成時には、Sailの初期化スクリプトが`testing`データベースを作成します。既存ボリュームに`testing`がない場合は、次のコマンドでMySQLへ接続し、ローカル開発用のrootパスワードを入力してください。
 
-### 管理者
+```bash
+sail exec mysql mysql -u root -p
+```
 
-- 管理者ログイン
-- 日次勤怠一覧表示
-- 勤怠詳細表示・修正
-- スタッフ一覧表示
-- スタッフ別月次勤怠一覧表示
-- 勤怠修正申請の確認・承認
+MySQL内で次を実行します。
 
-> **TODO**  
-> 各機能の実装完了時に、実際の実装内容に合わせて更新します。
+```sql
+CREATE DATABASE IF NOT EXISTS testing;
+GRANT ALL PRIVILEGES ON testing.* TO 'sail'@'%';
+exit;
+```
 
----
+テストはテスト用DB内のデータを作成・削除します。アプリ用DBをテスト用DBとして指定しないでください。
 
-## テスト
+## 公開API
 
-**TODO：テスト実装後に、テストの実行方法・対象機能・確認内容を追記します。**
+| メソッド | URI | 認証・認可 |
+| --- | --- | --- |
+| GET | `/api/v1/attendance-records` | 認証不要 |
+| GET | `/api/v1/attendance-records/{attendanceRecord}` | 認証不要 |
+| POST | `/api/v1/attendance-records` | Sanctum認証 |
+| PUT / PATCH | `/api/v1/attendance-records/{attendanceRecord}` | Sanctum認証、本人または管理者 |
+| DELETE | `/api/v1/attendance-records/{attendanceRecord}` | Sanctum認証、本人または管理者 |
 
-実行コマンドは、テスト環境確定後に記載します。
+一覧は`user_id`、`date`（YYYY-MM-DD）、`month`（YYYY-MM）、`page`、`per_page`で指定できます。`per_page`の既定値は20、最大値は100です。
 
----
+Bearerトークンを使用する場合は`Authorization: Bearer <token>`を付けます。JSONリクエストには`Content-Type: application/json`と`Accept: application/json`を指定します。トークン値はREADMEへ記載しません。
 
-## 補足
+PUT・PATCHともに未送信項目を保持します。`date`と`clock_in`は送信時に必須（NULL不可）、`clock_out`と`comment`はNULLへ更新できます。
 
-フロントエンドのBladeテンプレート・CSS・JavaScriptについては、課題で提供された `resources/` を使用します。
+## 設計資料・ER図
 
-バックエンドについては、要件に基づいて以下を実装します。
+- [要件シート・基本設計書・テーブル仕様書](docs/requirements.xlsx)
+- [ER図の画像](docs/er-diagram.png)
+- [公開APIの実装補足](docs/api-implementation.md)
 
-- Route
-- Controller
-- Model
-- Migration
-- FormRequest
-- Policy / Middleware等の認可処理
-- Seeder / Factory
-- Test
+![勤怠管理アプリのER図](docs/er-diagram.png)
 
----
+業務テーブル5個と補助テーブル3個を掲載しています。Laravel管理の`migrations`テーブルを含めると計9個です。
 
-## README更新予定
+## 提供リソースの取り扱い
 
-本READMEは、開発工程に合わせて更新します。
+Bladeテンプレート・CSS・JavaScriptは課題で提供されたリソースを使用します。提供Bladeは変更しません。
 
-| 開発工程         | READMEへの主な追記内容                      |
-| ---------------- | ------------------------------------------- |
-| 環境構築         | Sail、Fortify、日本語化、環境構築手順       |
-| データベース設計 | ER図、Seeder、ログインユーザー              |
-| 認証機能         | 一般・管理者認証に関する補足                |
-| 基本機能実装     | 実装済み機能                                |
-| 基本機能テスト   | テスト方法・テスト内容                      |
-| 応用機能         | メール認証、CSV出力等                       |
-| 最終提出前       | URL、環境構築手順、ログイン情報等の最終確認 |
+画面が要求するルート名・URL・データ形式との整合性は、バックエンドで対応しています。翻訳メッセージは`lang/`へ配置し、外部翻訳パッケージは使用していません。

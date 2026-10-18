@@ -47,6 +47,8 @@ class User extends Authenticatable implements MustVerifyEmail
 
     /**
      * ユーザーに紐づく勤怠情報を取得する。
+     *
+     * @return HasMany 勤怠記録とのリレーション
      */
     public function attendanceRecords(): HasMany
     {
@@ -55,6 +57,8 @@ class User extends Authenticatable implements MustVerifyEmail
 
     /**
      * ユーザーに紐づく勤怠修正申請を取得する。
+     *
+     * @return HasMany 勤怠修正申請とのリレーション
      */
     public function attendanceCorrectionRequests(): HasMany
     {
