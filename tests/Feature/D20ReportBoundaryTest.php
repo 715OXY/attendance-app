@@ -33,15 +33,15 @@ class D20ReportBoundaryTest extends TestCase
         // 対象期間より前
         $this->createAttendance(
             $user,
-            '2026-03-31',
+            '2026-04-30',
             '08:00',
             '21:00'
         );
 
-        // 当月は対象外
+        // 翌月は対象外
         $this->createAttendance(
             $user,
-            '2026-10-01',
+            '2026-11-01',
             '08:00',
             '21:00'
         );
@@ -49,7 +49,7 @@ class D20ReportBoundaryTest extends TestCase
         // 他ユーザー
         $this->createAttendance(
             $otherUser,
-            '2026-09-01',
+            '2026-10-01',
             '08:00',
             '21:00'
         );
@@ -90,7 +90,7 @@ class D20ReportBoundaryTest extends TestCase
         // 実働8時間
         $this->createAttendance(
             $user,
-            '2026-09-01',
+            '2026-10-01',
             '09:00',
             '18:00'
         );
@@ -98,7 +98,7 @@ class D20ReportBoundaryTest extends TestCase
         // 実働10時間
         $this->createAttendance(
             $user,
-            '2026-09-02',
+            '2026-10-02',
             '08:00',
             '19:00'
         );

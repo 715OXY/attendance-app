@@ -39,35 +39,35 @@ class D20AttendanceReportTest extends TestCase
 
         $this->createAttendance(
             $user,
-            '2026-09-01',
+            '2026-10-01',
             '09:00',
             '18:00'
         );
 
         $this->createAttendance(
             $user,
-            '2026-09-02',
+            '2026-10-02',
             '09:00',
             '20:00'
         );
 
         $this->createAttendance(
             $user,
-            '2026-09-03',
+            '2026-10-03',
             '09:30',
             '18:00'
         );
 
         $this->createAttendance(
             $user,
-            '2026-09-04',
+            '2026-10-04',
             '09:00',
             '17:00'
         );
 
         $this->createAttendance(
             $user,
-            '2026-09-07',
+            '2026-10-07',
             '08:00',
             '21:00'
         );
@@ -89,14 +89,14 @@ class D20AttendanceReportTest extends TestCase
         $response->assertViewHas(
             'monthlyTrend',
             function (Collection $monthlyTrend): bool {
-                $september = $monthlyTrend->firstWhere(
+                $october = $monthlyTrend->firstWhere(
                     'month',
-                    '2026/09'
+                    '2026/10'
                 );
 
                 return $monthlyTrend->count() === 6
-                    && $september['work_minutes'] === 2670
-                    && $september['overtime_minutes'] === 360;
+                    && $october['work_minutes'] === 2670
+                    && $october['overtime_minutes'] === 360;
             }
         );
 

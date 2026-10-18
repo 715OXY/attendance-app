@@ -51,9 +51,7 @@ class DatabaseSeeder extends Seeder
      */
     private function createReportAttendanceRecords(User $user): void
     {
-        $latestMonth = now()
-            ->subMonthNoOverflow()
-            ->startOfMonth();
+        $latestMonth = now()->startOfMonth();
 
         $startMonth = $latestMonth
             ->copy()

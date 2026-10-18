@@ -30,10 +30,10 @@ class ReportController extends Controller
      */
     public function index(Request $request): View
     {
-        $endMonth = now()->subMonthNoOverflow()->endOfMonth();
+        $endMonth = now()->endOfMonth();
         $startMonth = $endMonth->copy()
-            ->subMonths(self::REPORT_MONTH_COUNT - 1)
-            ->startOfMonth();
+            ->startOfMonth()
+            ->subMonths(self::REPORT_MONTH_COUNT - 1);
 
         $attendances = Attendance::with('breaks')
             ->where('user_id', $request->user()->id)
